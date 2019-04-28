@@ -80,7 +80,7 @@ class DatabaseUse:
                    FROM users
                    WHERE first_name = "{}" AND second_name = "{}" AND user_group = "{}"'''
         cur.execute(query.format(first_name, second_name, group))
-        status = cur.fetchcall()
+        status = cur.fetchall()
         return len(status) > 0 and status[0][0] == 1
 
     def check_task(self, name, conn):
@@ -89,7 +89,7 @@ class DatabaseUse:
                    FROM tasks
                    WHERE name = "{}"'''
         cur.execute(query.format(name))
-        return len(cur.fetchcall()) != 0
+        return len(cur.fetchall()) != 0
 
     def add_student(self, first_name, second_name, group, chat_id, conn):
         cur = conn.cursor()
@@ -196,7 +196,7 @@ class DatabaseUse:
         query = '''UPDATE users 
                    SET problems = "{}" 
                    WHERE first_name = "{}" AND second_name = "{}" AND user_group = "{}"'''
-        cur.execute(query.format(tasksline[0][0], first_name, second_name, group))
+        cur.execute(query.format(tasksline, first_name, second_name, group))
         return
 
     def add_task(self, task, limit, conn):
@@ -235,6 +235,6 @@ class DatabaseUse:
         students = cur.fetchall()
         ans = ""
         for student in students:
-            ans += (student[0] + " " + student[1] + " " + student[2] + "tasks information:" +
+            ans += (student[0] + " " + student[1] + " " + student[2] + ": tasks information: " +
                     " ".join(list(student[3])) + "\n")
         return ans

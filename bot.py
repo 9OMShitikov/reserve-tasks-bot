@@ -77,7 +77,7 @@ def add_task(bot, update):
             return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
     if len(inp) != 3:
         return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
-    if not(inp[3].isnum()):
+    if not(inp[2].isdigit()):
         return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
     with sqlite3.connect(config['Database']['way']) as conn:
         if base.check_task(inp[1], conn):
@@ -98,7 +98,7 @@ def add_student(bot, update):
         if not(base.check_student(inp[1], inp[2], inp[3], conn)):
             return bot.send_message(chat_id=update.message.chat_id, text="There's no application")
         if base.is_active(inp[1], inp[2], inp[3], conn):
-            return bot.send_message(chat_id=update.message.chat_id, text="Application confirmed")
+            return bot.send_message(chat_id=update.message.chat_id, text="Application already confirmed")
         base.set_active(inp[1], inp[2], inp[3], conn)
         conn.commit()
         return bot.send_message(chat_id=update.message.chat_id, text="Done")
@@ -108,7 +108,7 @@ def add_reservation(bot, update):
     inp = update.message.text.split()
     if len(inp) != 2:
         return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
-    if not (inp[1].isalnu()):
+    if not (inp[1].isalnum()):
         return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
     with sqlite3.connect(config['Database']['way']) as conn:
         if base.check_reservation(inp[1], str(update.message.chat_id), conn):
