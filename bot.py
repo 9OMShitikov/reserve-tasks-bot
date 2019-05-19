@@ -1,7 +1,9 @@
 from telegram.ext import Updater, CommandHandler, Filters
 import logging
 import configparser
-import databaseuse
+from databaseuse import TasksDatabase, TeacherRepository, \
+                        UsersRepository, ReservationsRepository, \
+                        TasksRepository
 import sqlite3
 
 # Enable logging
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 config = configparser.ConfigParser()
 config.read('config.ini')
 
-base = databaseuse.DatabaseUse(config['Database']['way'])
+base = TasksDatabase(config['Database']['way'])
 
 
 def start(bot, update):
@@ -44,13 +46,14 @@ def student_register(bot, update):
     inp = update.message.text.split()
     for i in inp[1:]:
         if not(i.isalnum()):
-            return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+            return bot.send_message(chat_id=update.message.chat_id, text="Wrong argument with number " + str(i) +
+                                                                         ": it should be alnum.")
     if len(inp) != 4:
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong count of arguents. Should be: 3.")
     with sqlite3.connect(config['Database']['way']) as conn:
-        if base.check_student(inp[1], inp[2], inp[3], conn):
+        if UsersRepository.check_student(inp[1], inp[2], inp[3], conn):
             return bot.send_message(chat_id=update.message.chat_id, text="You've already sent the application")
-        base.add_student(inp[1], inp[2], inp[3], str(update.message.chat_id), conn)
+        UsersRepository.add_student(inp[1], inp[2], inp[3], str(update.message.chat_id), conn)
         conn.commit()
         return bot.send_message(chat_id=update.message.chat_id, text="Done")
 
@@ -59,13 +62,14 @@ def teacher_register(bot, update):
     inp = update.message.text.split()
     for i in inp[1:]:
         if not(i.isalnum()):
-            return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+            return bot.send_message(chat_id=update.message.chat_id, text="Wrong argument with number " + str(i) +
+                                                                         ": it should be alnum.")
     if len(inp) != 3:
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong count of arguents. Should be: 2.")
     with sqlite3.connect(config['Database']['way']) as conn:
-        if base.check_teacher( conn):
+        if TeacherRepository.check_teacher(conn):
             return bot.send_message(chat_id=update.message.chat_id, text="The teacher already exists")
-        base.set_teacher(inp[1], inp[2], str(update.message.chat_id), conn)
+        TeacherRepository.set_teacher(inp[1], inp[2], str(update.message.chat_id), conn)
         conn.commit()
         return bot.send_message(chat_id=update.message.chat_id, text="Done")
 
@@ -74,15 +78,17 @@ def add_task(bot, update):
     inp = update.message.text.split()
     for i in inp[1:]:
         if not(i.isalnum()):
-            return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+            return bot.send_message(chat_id=update.message.chat_id, text="Wrong argument with number " + str(i) +
+                                                                         ": it should be alnum.")
     if len(inp) != 3:
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong count of arguents. Should be: 2.")
     if not(inp[2].isdigit()):
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong argument with number " + str(2) +
+                                                                         ": it should be digit.")
     with sqlite3.connect(config['Database']['way']) as conn:
-        if base.check_task(inp[1], conn):
+        if TasksRepository.check_task(inp[1], conn):
             return bot.send_message(chat_id=update.message.chat_id, text="The task already exists")
-        base.add_task(inp[1], inp[2], conn)
+        TasksRepository.add_task(inp[1], inp[2], conn)
         conn.commit()
         return bot.send_message(chat_id=update.message.chat_id, text="Done")
 
@@ -91,15 +97,16 @@ def add_student(bot, update):
     inp = update.message.text.split()
     for i in inp[1:]:
         if not(i.isalnum()):
-            return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+            return bot.send_message(chat_id=update.message.chat_id, text="Wrong argument with number " + str(i) +
+                                                                         ": it should be alnum.")
     if len(inp) != 4:
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong count of arguents. Should be: 3.")
     with sqlite3.connect(config['Database']['way']) as conn:
-        if not(base.check_student(inp[1], inp[2], inp[3], conn)):
+        if not(UsersRepository.check_student(inp[1], inp[2], inp[3], conn)):
             return bot.send_message(chat_id=update.message.chat_id, text="There's no application")
-        if base.is_active(inp[1], inp[2], inp[3], conn):
+        if UsersRepository.is_active(inp[1], inp[2], inp[3], conn):
             return bot.send_message(chat_id=update.message.chat_id, text="Application already confirmed")
-        base.set_active(inp[1], inp[2], inp[3], conn)
+        UsersRepository.set_active(inp[1], inp[2], inp[3], conn)
         conn.commit()
         return bot.send_message(chat_id=update.message.chat_id, text="Done")
 
@@ -107,15 +114,16 @@ def add_student(bot, update):
 def add_reservation(bot, update):
     inp = update.message.text.split()
     if len(inp) != 2:
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong count of arguents. Should be: 1.")
     if not (inp[1].isalnum()):
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong argument with number " + str(1) +
+                                                                         ": it should be alnum.")
     with sqlite3.connect(config['Database']['way']) as conn:
-        if base.check_reservation(inp[1], str(update.message.chat_id), conn):
+        if ReservationsRepository.check_reservation(inp[1], str(update.message.chat_id), conn):
             return bot.send_message(chat_id=update.message.chat_id, text="You've already reserved this task")
-        if not(base.check_valid_reservation(inp[1], conn)):
+        if not(ReservationsRepository.check_valid_reservation(inp[1], conn)):
             return bot.send_message(chat_id=update.message.chat_id, text="The task doesn't exist.")
-        base.add_reservation(inp[1], str(update.message.chat_id), conn)
+        ReservationsRepository.add_reservation(inp[1], str(update.message.chat_id), conn)
         conn.commit()
         return bot.send_message(chat_id=update.message.chat_id, text="Done")
 
@@ -124,17 +132,18 @@ def complete_task(bot, update):
     inp = update.message.text.split()
     for i in inp[1:]:
         if not (i.isalnum()):
-            return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+            return bot.send_message(chat_id=update.message.chat_id, text="Wrong argument with number " + str(i) +
+                                                                         ": it should be alnum.")
     if len(inp) != 5:
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong count of arguents. Should be: 4.")
     with sqlite3.connect(config['Database']['way']) as conn:
-        if not(base.is_active(inp[2], inp[3], inp[4], conn)):
+        if not(UsersRepository.is_active(inp[2], inp[3], inp[4], conn)):
             return bot.send_message(chat_id=update.message.chat_id, text="There's no active students with this data")
-        student_chat_id = base.get_student_chat_id(inp[2], inp[3], inp[4], conn)
-        if not (base.check_reservation(inp[1], student_chat_id, conn)):
+        student_chat_id = UsersRepository.get_student_chat_id(inp[2], inp[3], inp[4], conn)
+        if not (ReservationsRepository.check_reservation(inp[1], student_chat_id, conn)):
             return bot.send_message(chat_id=update.message.chat_id,
                                     text="No reservations to this task from this student")
-        base.confirm_reservation(inp[1], inp[2], inp[3], inp[4], conn)
+        ReservationsRepository.confirm_reservation(inp[1], inp[2], inp[3], inp[4], conn)
         conn.commit()
         return bot.send_message(chat_id=update.message.chat_id, text="Done")
 
@@ -143,29 +152,30 @@ def delete_reservation(bot, update):
     inp = update.message.text.split()
     for i in inp[1:]:
         if not (i.isalnum()):
-            return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+            return bot.send_message(chat_id=update.message.chat_id, text="Wrong argument with number " + str(i) +
+                                                                         ": it should be alnum.")
     if len(inp) != 5:
-        return bot.send_message(chat_id=update.message.chat_id, text="Wrong input")
+        return bot.send_message(chat_id=update.message.chat_id, text="Wrong count of arguents. Should be: 4.")
     with sqlite3.connect(config['Database']['way']) as conn:
-        if not(base.is_active(inp[2], inp[3], inp[4], conn)):
+        if not(UsersRepository.is_active(inp[2], inp[3], inp[4], conn)):
             return bot.send_message(chat_id=update.message.chat_id, text="There's no active students with this data")
-        student_chat_id = base.get_student_chat_id(inp[2], inp[3], inp[4], conn)
-        if not (base.check_reservation(inp[1], student_chat_id, conn)):
+        student_chat_id = UsersRepository.get_student_chat_id(inp[2], inp[3], inp[4], conn)
+        if not (ReservationsRepository.check_reservation(inp[1], student_chat_id, conn)):
             return bot.send_message(chat_id=update.message.chat_id,
                                     text="No reservations to this task from this student")
-        base.delete_reservation(inp[1], inp[2], inp[3], inp[4], conn)
+        ReservationsRepository.delete_reservation(inp[1], inp[2], inp[3], inp[4], conn)
         conn.commit()
         return bot.send_message(chat_id=update.message.chat_id, text="Done")
 
 
 def students_info(bot, update):
     with sqlite3.connect(config['Database']['way']) as conn:
-        return bot.send_message(chat_id=update.message.chat_id, text=base.get_students(conn))
+        return bot.send_message(chat_id=update.message.chat_id, text=UsersRepository.get_students(conn))
 
 
 def tasks_info(bot, update):
     with sqlite3.connect(config['Database']['way']) as conn:
-        return bot.send_message(chat_id=update.message.chat_id, text=base.get_tasks(conn))
+        return bot.send_message(chat_id=update.message.chat_id, text=TasksRepository.get_tasks(conn))
 
 
 def error(bot, update, error):
@@ -197,4 +207,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
