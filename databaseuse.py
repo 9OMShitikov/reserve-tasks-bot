@@ -1,7 +1,7 @@
 import sqlite3
 
 
-class DatabaseUse:
+class TasksDatabase:
     def __init__(self, _database_name):
         database_name = _database_name
         with sqlite3.connect(database_name) as conn:
@@ -42,7 +42,17 @@ class DatabaseUse:
             cur.execute('''INSERT INTO teacher (chat_id) VALUES ('temporary_id')''')
             conn.commit()
 
-    def check_teacher(self, conn):
+
+class TeacherRepository:
+    @staticmethod
+    def set_teacher(first_name, second_name, chat_id, conn):
+        cur = conn.cursor()
+        query = '''UPDATE teacher SET first_name = "{}", second_name = "{}", chat_id = "{}", tasks_count = 0'''
+        cur.execute(query.format(first_name, second_name, chat_id))
+        return
+
+    @staticmethod
+    def check_teacher(conn):
         cur = conn.cursor()
         query = '''SELECT teacher.id
                    FROM teacher
@@ -50,23 +60,8 @@ class DatabaseUse:
         cur.execute(query)
         return len(cur.fetchall()) == 0
 
-    def check_student(self, first_name, second_name, group, conn):
-        cur = conn.cursor()
-        query = '''SELECT users.id
-                   FROM users
-                   WHERE first_name = "{}" AND second_name = "{}" AND user_group = "{}"'''
-        cur.execute(query.format(first_name, second_name, group))
-        return len(cur.fetchall()) != 0
-
-    def check_id_student(self, chat_id, conn):
-        cur = conn.cursor()
-        query = '''SELECT users.id
-                   FROM users
-                   WHERE chat_id = "{}"'''
-        cur.execute(query.format(chat_id))
-        return len(cur.fetchall()) != 0
-
-    def check_id_teacher(self, chat_id, conn):
+    @staticmethod
+    def check_id_teacher(chat_id, conn):
         cur = conn.cursor()
         query = '''SELECT teacher.id
                    FROM teacher
@@ -74,7 +69,35 @@ class DatabaseUse:
         cur.execute(query.format(chat_id))
         return len(cur.fetchall()) != 0
 
-    def is_active (self, first_name, second_name, group, conn):
+    @staticmethod
+    def get_teacher_chat_id(conn):
+        cur = conn.cursor()
+        query = '''SELECT teacher.chat_id FROM teacher'''
+        cur.execute(query)
+        return cur.fetchall()[0][0]
+
+
+class UsersRepository:
+    @staticmethod
+    def check_student(first_name, second_name, group, conn):
+        cur = conn.cursor()
+        query = '''SELECT users.id
+                   FROM users
+                   WHERE first_name = "{}" AND second_name = "{}" AND user_group = "{}"'''
+        cur.execute(query.format(first_name, second_name, group))
+        return len(cur.fetchall()) != 0
+
+    @staticmethod
+    def check_id_student(chat_id, conn):
+        cur = conn.cursor()
+        query = '''SELECT users.id
+                   FROM users
+                   WHERE chat_id = "{}"'''
+        cur.execute(query.format(chat_id))
+        return len(cur.fetchall()) != 0
+
+    @staticmethod
+    def is_active(first_name, second_name, group, conn):
         cur = conn.cursor()
         query = '''SELECT users.is_active
                    FROM users
@@ -83,15 +106,8 @@ class DatabaseUse:
         status = cur.fetchall()
         return len(status) > 0 and status[0][0] == 1
 
-    def check_task(self, name, conn):
-        cur = conn.cursor()
-        query = '''SELECT tasks.id
-                   FROM tasks
-                   WHERE name = "{}"'''
-        cur.execute(query.format(name))
-        return len(cur.fetchall()) != 0
-
-    def add_student(self, first_name, second_name, group, chat_id, conn):
+    @staticmethod
+    def add_student(first_name, second_name, group, chat_id, conn):
         cur = conn.cursor()
         query = '''SELECT teacher.tasks_count FROM teacher'''
         cur.execute(query)
@@ -101,7 +117,8 @@ class DatabaseUse:
         cur.execute(query.format(first_name, second_name, group, chat_id, "0"*(tasks_count[0][0])))
         return
 
-    def set_active(self, first_name, second_name, group, conn):
+    @staticmethod
+    def set_active(first_name, second_name, group, conn):
         cur = conn.cursor()
         query = '''UPDATE users
                    SET is_active = 1 
@@ -109,39 +126,31 @@ class DatabaseUse:
         cur.execute(query.format(first_name, second_name, group))
         return
 
-    def set_teacher(self, first_name, second_name, chat_id, conn):
-        cur = conn.cursor()
-        query = '''UPDATE teacher SET first_name = "{}", second_name = "{}", chat_id = "{}", tasks_count = 0'''
-        cur.execute(query.format(first_name, second_name, chat_id))
-        return
-
-    def get_student_chat_id(self, first_name, second_name, group, conn):
+    @staticmethod
+    def get_student_chat_id(first_name, second_name, group, conn):
         cur = conn.cursor()
         query = '''SELECT users.chat_id FROM users WHERE 
                    first_name = "{}" AND second_name = "{}" AND user_group = "{}"'''
         cur.execute(query.format(first_name, second_name, group))
         return cur.fetchall()[0][0]
 
-    def get_teacher_chat_id(self, conn):
+    @staticmethod
+    def get_students(conn):
         cur = conn.cursor()
-        query = '''SELECT teacher.chat_id FROM teacher'''
+        query = '''SELECT users.first_name, users.second_name, users.user_group, users.problems FROM users'''
         cur.execute(query)
-        return cur.fetchall()[0][0]
+        students = cur.fetchall()
+        ans = ""
+        for student in students:
+            ans += (student[0] + " " + student[1] + " " + student[2] + ": tasks information: " +
+                    " ".join(list(student[3])) + "\n")
+        return ans
 
-    def check_valid_reservation(self, task_name, conn):
-        cur = conn.cursor()
-        query = '''SELECT tasks.solve_limit 
-                           FROM tasks 
-                           WHERE name = "{}"'''
-        cur.execute(query.format(task_name))
-        row = cur.fetchall()
-        if len(row) == 0:
-            return 0
-        if row[0][0] == 0:
-            return 0
-        return 1
 
-    def check_reservation(self, task_name, chat_id, conn):
+class ReservationsRepository:
+
+    @staticmethod
+    def check_reservation(task_name, chat_id, conn):
         cur = conn.cursor()
         query = '''SELECT reservations.id FROM reservations WHERE 
                    task = (SELECT tasks.id FROM tasks WHERE name = "{}") AND 
@@ -150,7 +159,8 @@ class DatabaseUse:
         row = cur.fetchall()
         return len(row) != 0
 
-    def add_reservation(self, task_name, chat_id, conn):
+    @staticmethod
+    def add_reservation(task_name, chat_id, conn):
         cur = conn.cursor()
         query = '''INSERT INTO reservations (task, user) VALUES (
                    (SELECT tasks.id FROM tasks WHERE name = "{}"),
@@ -163,7 +173,8 @@ class DatabaseUse:
         cur.execute(query.format(str(row[0][0] - 1), task_name))
         return
 
-    def delete_reservation(self, task, first_name, second_name, group, conn):
+    @staticmethod
+    def delete_reservation(task, first_name, second_name, group, conn):
         cur = conn.cursor()
         query = '''DELETE FROM reservations WHERE 
                    task = (SELECT tasks.id FROM tasks WHERE name = "{}") AND 
@@ -177,7 +188,8 @@ class DatabaseUse:
         cur.execute(query.format(str(row[0][0] + 1), task))
         return
 
-    def confirm_reservation(self, task, first_name, second_name, group, conn):
+    @staticmethod
+    def confirm_reservation(task, first_name, second_name, group, conn):
         cur = conn.cursor()
         query = '''DELETE FROM reservations WHERE 
                    task = (SELECT tasks.id FROM tasks WHERE name = "{}") AND 
@@ -199,7 +211,24 @@ class DatabaseUse:
         cur.execute(query.format(tasksline, first_name, second_name, group))
         return
 
-    def add_task(self, task, limit, conn):
+    @staticmethod
+    def check_valid_reservation(task_name, conn):
+        cur = conn.cursor()
+        query = '''SELECT tasks.solve_limit 
+                           FROM tasks 
+                           WHERE name = "{}"'''
+        cur.execute(query.format(task_name))
+        row = cur.fetchall()
+        if len(row) == 0:
+            return 0
+        if row[0][0] == 0:
+            return 0
+        return 1
+
+
+class TasksRepository:
+    @staticmethod
+    def add_task(task, limit, conn):
         cur = conn.cursor()
         query = '''SELECT teacher.tasks_count FROM teacher'''
         cur.execute(query)
@@ -216,7 +245,17 @@ class DatabaseUse:
         cur.execute(query.format(task, tasks_count[0][0], limit))
         return
 
-    def get_tasks(self, conn):
+    @staticmethod
+    def check_task(name, conn):
+        cur = conn.cursor()
+        query = '''SELECT tasks.id
+                   FROM tasks
+                   WHERE name = "{}"'''
+        cur.execute(query.format(name))
+        return len(cur.fetchall()) != 0
+
+    @staticmethod
+    def get_tasks(conn):
         cur = conn.cursor()
         query = '''SELECT tasks.number, tasks.name, tasks.solve_limit FROM tasks'''
         cur.execute(query)
@@ -226,15 +265,4 @@ class DatabaseUse:
         ans = ""
         for task in tasks:
             ans += (task[1] + " " + str(task[2]) + "\n")
-        return ans
-
-    def get_students(self, conn):
-        cur = conn.cursor()
-        query = '''SELECT users.first_name, users.second_name, users.user_group, users.problems FROM users'''
-        cur.execute(query)
-        students = cur.fetchall()
-        ans = ""
-        for student in students:
-            ans += (student[0] + " " + student[1] + " " + student[2] + ": tasks information: " +
-                    " ".join(list(student[3])) + "\n")
         return ans
